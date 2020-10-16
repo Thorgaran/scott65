@@ -1,3 +1,9 @@
+mod lexer;
+
 fn main() {
-    println!("Hello, world!");
+    let tokens = lexer::lex("1 2 3 4");
+    
+    for token in tokens.iter() {
+        println!("{:?}", token);
+    }
 }
