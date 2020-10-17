@@ -19,8 +19,20 @@ pub fn run(config: Config) {
     let tokens = lexer::lex(&source_code);
 
     for token in tokens.iter() {
-        println!("{:?}", token);
+        println!("{}", token);
     }
+
+    let mut tokens_iter = tokens.into_iter().peekable();
+
+    tokens::expect_next(&mut tokens_iter, tokens::TokenKind::OpenParen).unwrap_or_else(|err| {
+        println!("Error: {}", err);
+        process::exit(1);
+    });
+    tokens_iter.next();
+    tokens::expect_next(&mut tokens_iter, tokens::TokenKind::CloseParen).unwrap_or_else(|err| {
+        println!("Error: {}", err);
+        process::exit(1);
+    });
 }
 
 fn read_scheme_file(path: &str) -> Result<String, io::Error> {

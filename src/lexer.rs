@@ -1,5 +1,5 @@
 extern crate itertools;
-use super::tokens::{Token, Position, Value};
+use super::tokens::{Token, TokenKind, Position, Value};
 use itertools::Itertools;
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -58,13 +58,16 @@ pub fn lex(input: &str) -> Vec<Token> {
 
     while let Some((pos, c)) = lexer.next() {
         match c {
-            '(' => lexer.push_token(Token::OpenParen(pos)),
-            ')' => lexer.push_token(Token::CloseParen(pos)),
+            '(' => lexer.push_token(Token { kind: TokenKind::OpenParen, pos }),
+            ')' => lexer.push_token(Token { kind: TokenKind::CloseParen, pos }),
             '0'..='9' => {
                 let number_str = lexer.get_string(c, |x| x.is_ascii_digit());
-                lexer.push_token(Token::Literal(
-                    Value::Int(number_str.parse().unwrap()),
-                    pos));
+                lexer.push_token(Token {
+                    kind: TokenKind::Literal(
+                        Value::Int(number_str.parse().unwrap())
+                    ),
+                    pos
+                });
             },
             ' ' => continue,
             _ => panic!("Invalid character"),
@@ -87,12 +90,30 @@ mod tests {
     #[test]
     fn paren_and_int() {
         let expected_tokens = vec![
-            Token::Literal(Value::Int(1), Position { line: 0, column: 0 }),
-            Token::OpenParen(Position { line: 0, column: 1 }),
-            Token::CloseParen(Position { line: 0, column: 4 }),
-            Token::Literal(Value::Int(255), Position { line: 0, column: 6 }),
-            Token::CloseParen(Position { line: 0, column: 10 }),
-            Token::Literal(Value::Int(0), Position { line: 0, column: 11 }),
+            Token { 
+                kind: TokenKind::Literal(Value::Int(1)), 
+                pos: Position { line: 0, column: 0 }
+            },
+            Token { 
+                kind: TokenKind::OpenParen, 
+                pos: Position { line: 0, column: 1 }
+            },
+            Token { 
+                kind: TokenKind::CloseParen, 
+                pos: Position { line: 0, column: 4 }
+            },
+            Token { 
+                kind: TokenKind::Literal(Value::Int(255)), 
+                pos: Position { line: 0, column: 6 }
+            },
+            Token { 
+                kind: TokenKind::CloseParen, 
+                pos: Position { line: 0, column: 10 }
+            },
+            Token { 
+                kind: TokenKind::Literal(Value::Int(0)), 
+                pos: Position { line: 0, column: 11 }
+            },
         ];
 
         assert_eq!(expected_tokens, lex("1(  ) 255 )0"));
