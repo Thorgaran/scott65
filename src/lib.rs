@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::process;
 
+pub mod tokens;
 pub mod lexer;
 
 #[derive(Debug, PartialEq)]
