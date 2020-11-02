@@ -60,57 +60,77 @@ impl fmt::Display for Value {
     }
 }
 
-/// Returns an error if the next token isn't of a given expected kind.
-/// 
-/// Note that the values inside the variants are ignored.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use scott65::tokens;
-/// use tokens::{Token, TokenKind, Position, Value, ParseError, ErrorKind};
-/// 
-/// let expected_token = TokenKind::Literal(Value::Int(123));
-/// 
-/// let actual_token = Token { 
-///     kind: TokenKind::Literal(Value::Int(42)),
-///     pos: Position {line: 0, column: 0}
-/// };
-/// 
-/// assert_eq!(
-///     tokens::expect_next(&mut vec![actual_token].into_iter().peekable(), expected_token.clone()), 
-///     Ok(())
-/// );
-/// 
-/// let actual_token = Token { 
-///     kind: TokenKind::OpenParen,
-///     pos: Position {line: 0, column: 0}
-/// };
-/// 
-/// assert_eq!(
-///     tokens::expect_next(&mut vec![actual_token.clone()].into_iter().peekable(), expected_token.clone()), 
-///     Err(ParseError { kind: ErrorKind::WrongToken(expected_token.clone(), actual_token) })
-/// );
-/// 
-/// assert_eq!(
-///     tokens::expect_next(&mut vec![].into_iter().peekable(), expected_token.clone()), 
-///     Err(ParseError { kind: ErrorKind::EndOfFile(expected_token) })
-/// );
-/// ```
-pub fn expect_next<T>(tokens: &mut Peekable<T>, expected_token: TokenKind) -> Result<(), ParseError>
-where
-    T: Iterator<Item = Token>
-{
-    match tokens.peek() {
-        Some(tok) => {
-            if mem::discriminant(&tok.kind) != mem::discriminant(&expected_token) {
-                return Err(ParseError { kind: ErrorKind::WrongToken(expected_token, tok.clone()) })
-            }
-        },
-        None => return Err(ParseError { kind: ErrorKind::EndOfFile(expected_token) }),
+// Wrapper type around Tokens Peekable
+pub struct TokPeekable(Peekable<Box<dyn Iterator<Item = Token>>>);
+
+impl TokPeekable {
+    pub fn from(tokens: Vec<Token>) -> TokPeekable {
+        TokPeekable((Box::new(tokens.into_iter()) as Box<dyn Iterator<Item = Token>>).peekable())
     }
 
-    Ok(())
+    /// Returns an error if the next token isn't of a given expected kind.
+    /// Otherwise, returns the kind of the next token (thus calling next() on the peekable)
+    /// 
+    /// Note that the values inside the variants are ignored for the comparison.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use scott65::tokens;
+    /// use tokens::{Token, TokenKind, TokPeekable, Position, Value, ParseError, ErrorKind};
+    /// 
+    /// let wrong_expected_token = TokenKind::OpenParen;
+    /// let expected_token = TokenKind::Literal(Value::Int(123));
+    /// 
+    /// let actual_token = Token { 
+    ///     kind: TokenKind::Literal(Value::Int(42)),
+    ///     pos: Position {line: 0, column: 0}
+    /// };
+    /// let mut actual_token_peekable = TokPeekable::from(vec![actual_token.clone()]);
+    /// 
+    /// // Wrong token
+    /// assert_eq!(
+    ///     actual_token_peekable.expect_next(wrong_expected_token.clone()), 
+    ///     Err(ParseError { kind: ErrorKind::WrongToken(vec![wrong_expected_token.clone()], actual_token.clone()) })
+    /// );
+    /// 
+    /// // Right token
+    /// assert_eq!(
+    ///     actual_token_peekable.expect_next(expected_token.clone()), 
+    ///     Ok(actual_token.kind)
+    /// );
+    /// 
+    /// // End of file
+    /// assert_eq!(
+    ///     actual_token_peekable.expect_next(expected_token.clone()), 
+    ///     Err(ParseError { kind: ErrorKind::EndOfFile(expected_token) })
+    /// );
+    /// ```
+    pub fn expect_next(&mut self, expected: TokenKind) -> Result<TokenKind, ParseError> {
+        match self.0.peek() {
+            Some(tok) => {
+                if mem::discriminant(&tok.kind) == mem::discriminant(&expected) {
+                    Ok(self.0.next().unwrap().kind)
+                } else {
+                    Err(ParseError { kind: ErrorKind::WrongToken(vec![expected], tok.clone()) })
+                }
+            },
+            None => Err(ParseError { kind: ErrorKind::EndOfFile(expected) }),
+        }
+    }
+
+    /// Compares the token to another one, returns true if they are equal and false otherwise.
+    /// 
+    /// Returns an error if the end of the token list is reached.
+    pub fn is_next(&mut self, other: TokenKind) -> Result<bool, ParseError> {
+        match self.expect_next(other) {
+            Err(err) => match err.kind {
+                ErrorKind::WrongToken(_, _) => Ok(false),
+                ErrorKind::EndOfFile(_) => Err(err),
+            },
+            Ok(_) => Ok(true),
+        }
+    }
 }
 
 /// The error type for parsing operations of Tokens.
@@ -124,8 +144,8 @@ pub struct ParseError {
 /// It is used with the [`tokens::ParseError`] type.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ErrorKind {
-    /// WrongToken(expected_token, actual_token): Expected a token but got a different one.
-    WrongToken(TokenKind, Token),
+    /// WrongToken(expected_tokens, actual_token): Expected a token but got a different one.
+    WrongToken(Vec<TokenKind>, Token),
     /// EndOfFile(expected_token): Expected a token but reached the end of the source file.
     EndOfFile(TokenKind),
 }
@@ -133,8 +153,15 @@ pub enum ErrorKind {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.kind {
-            ErrorKind::WrongToken(expected, actual) => 
-                write!(f, "Expected {}, got {}", expected, actual),
+            ErrorKind::WrongToken(expected, actual) => {
+                match expected.len() {
+                    0 => panic!("Empty list of expected tokens"),
+                    1 => write!(f, "Expected {}, got {}", expected[0], actual),
+                    _ => write!(f, "Expected one of {}, got {}", 
+                        expected.iter().map(|x| x.to_string()).collect::<String>(), 
+                        actual)
+                }
+            },
             ErrorKind::EndOfFile(expected) =>
                 write!(f, "Expected {} but reached the end of the source file", expected),
         }

@@ -4,6 +4,7 @@ use std::process;
 
 pub mod tokens;
 pub mod lexer;
+pub mod parser;
 
 #[derive(Debug, PartialEq)]
 pub struct Config {
@@ -18,21 +19,15 @@ pub fn run(config: Config) {
 
     let tokens = lexer::lex(&source_code);
 
-    for token in tokens.iter() {
-        println!("{}", token);
-    }
+    let program = match parser::parse(tokens) {
+        Ok(prgm) => prgm,
+        Err(err) => {
+            println!("Error: {}", err);
+            process::exit(1);
+        },
+    };
 
-    let mut tokens_iter = tokens.into_iter().peekable();
-
-    tokens::expect_next(&mut tokens_iter, tokens::TokenKind::OpenParen).unwrap_or_else(|err| {
-        println!("Error: {}", err);
-        process::exit(1);
-    });
-    tokens_iter.next();
-    tokens::expect_next(&mut tokens_iter, tokens::TokenKind::CloseParen).unwrap_or_else(|err| {
-        println!("Error: {}", err);
-        process::exit(1);
-    });
+    println!("{:?}", program);
 }
 
 fn read_scheme_file(path: &str) -> Result<String, io::Error> {
