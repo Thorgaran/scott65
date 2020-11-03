@@ -1,5 +1,5 @@
 extern crate itertools;
-use super::tokens::{Token, TokenKind, Position, Value};
+use super::tokens::*;
 use itertools::Itertools;
 use std::iter::Peekable;
 use std::vec::IntoIter;
@@ -52,7 +52,7 @@ impl Lexer {
 }
 
 /// Translates a Scheme string into Tokens
-pub fn lex(input: &str) -> Vec<Token> {
+pub fn lex(input: &str) -> TokList {
     let mut lexer = Lexer::new(input);
     
 
@@ -70,11 +70,11 @@ pub fn lex(input: &str) -> Vec<Token> {
                 });
             },
             ' ' => continue,
-            _ => panic!("Invalid character"),
+            _ => panic!("Invalid character: {}", c),
         }
     }
 
-    lexer.tokens
+    TokList::from(lexer.tokens)
 }
 
 #[cfg(test)]
@@ -83,13 +83,13 @@ mod tests {
 
     #[test]
     fn empty() {
-        let expected_tokens: Vec<Token> = vec![];
+        let expected_tokens = TokList::from(vec![]);
         assert_eq!(expected_tokens, lex(""));
     }
 
     #[test]
     fn paren_and_int() {
-        let expected_tokens = vec![
+        let expected_tokens = TokList::from(vec![
             Token { 
                 kind: TokenKind::Literal(Value::Int(1)), 
                 pos: Position { line: 0, column: 0 }
@@ -114,7 +114,7 @@ mod tests {
                 kind: TokenKind::Literal(Value::Int(0)), 
                 pos: Position { line: 0, column: 11 }
             },
-        ];
+        ]);
 
         assert_eq!(expected_tokens, lex("1(  ) 255 )0"));
     }

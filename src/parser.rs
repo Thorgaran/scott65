@@ -1,14 +1,15 @@
-use super::tokens::{TokPeekable, Token, TokenKind, Value, ParseError};
+use super::tokens::*;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub struct Program(Exp);
+pub struct Program(pub Exp);
 
 #[derive(Debug, PartialEq)]
 pub enum Exp {
     Value(Value),
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<Program, ParseError> {
+pub fn parse(tokens: TokList) -> Result<Program, ParseError> {
     let mut tokens = TokPeekable::from(tokens);
     Ok(Program(Exp::from_parse(&mut tokens)?))
 }
@@ -35,13 +36,28 @@ impl Exp {
     }
 }
 
+impl fmt::Display for Program {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Program:\n    {}\n", self.0)
+    }
+}
+
+impl fmt::Display for Exp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Exp::Value(val) => write!(f, "Value: {}", val),
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::tokens::Position;
 
     #[test]
     fn int_with_parentheses() {
-        let tokens = vec![
+        let tokens = TokList::from(vec![
             Token {
                 kind: TokenKind::OpenParen,
                 pos: Position {line: 0, column: 0}
@@ -54,7 +70,7 @@ mod tests {
                 kind: TokenKind::CloseParen,
                 pos: Position {line: 1, column: 0}
             },
-        ];
+        ]);
 
         assert_eq!(Ok(Program(Exp::Value(Value::Int(42)))), parse(tokens));
     }

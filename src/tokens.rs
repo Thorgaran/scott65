@@ -1,4 +1,6 @@
 use std::fmt;
+use std::ops::Deref;
+use std::error::Error;
 use std::mem;
 use std::iter::Peekable;
 
@@ -60,12 +62,42 @@ impl fmt::Display for Value {
     }
 }
 
+// Wrapper type around Tokens Vector
+#[derive(Debug, PartialEq)]
+pub struct TokList(Vec<Token>);
+
+impl TokList {
+    pub fn from(tokens: Vec<Token>) -> TokList {
+        TokList(tokens)
+    }
+}
+
+// Implement Deref to be able to use Vector methods
+impl Deref for TokList {
+    type Target = Vec<Token>;
+
+    fn deref(&self) -> &Vec<Token> {
+        &self.0
+    }
+}
+
+impl fmt::Display for TokList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Tokens:\n    {}\n", self
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<String>>()
+            .join("\n    ")
+        )
+    }
+}
+
 // Wrapper type around Tokens Peekable
 pub struct TokPeekable(Peekable<Box<dyn Iterator<Item = Token>>>);
 
 impl TokPeekable {
-    pub fn from(tokens: Vec<Token>) -> TokPeekable {
-        TokPeekable((Box::new(tokens.into_iter()) as Box<dyn Iterator<Item = Token>>).peekable())
+    pub fn from(tokens: TokList) -> TokPeekable {
+        TokPeekable((Box::new(tokens.0.into_iter()) as Box<dyn Iterator<Item = Token>>).peekable())
     }
 
     /// Returns an error if the next token isn't of a given expected kind.
@@ -77,7 +109,7 @@ impl TokPeekable {
     /// 
     /// ```
     /// use scott65::tokens;
-    /// use tokens::{Token, TokenKind, TokPeekable, Position, Value, ParseError, ErrorKind};
+    /// use tokens::*;
     /// 
     /// let wrong_expected_token = TokenKind::OpenParen;
     /// let expected_token = TokenKind::Literal(Value::Int(123));
@@ -86,7 +118,7 @@ impl TokPeekable {
     ///     kind: TokenKind::Literal(Value::Int(42)),
     ///     pos: Position {line: 0, column: 0}
     /// };
-    /// let mut actual_token_peekable = TokPeekable::from(vec![actual_token.clone()]);
+    /// let mut actual_token_peekable = TokPeekable::from(TokList::from(vec![actual_token.clone()]));
     /// 
     /// // Wrong token
     /// assert_eq!(
@@ -149,6 +181,8 @@ pub enum ErrorKind {
     /// EndOfFile(expected_token): Expected a token but reached the end of the source file.
     EndOfFile(TokenKind),
 }
+
+impl Error for ParseError {}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

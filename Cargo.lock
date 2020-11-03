@@ -20,4 +20,11 @@ name = "scott65"
 version = "0.1.0"
 dependencies = [
  "itertools",
+ "w65c02s",
 ]
+
+[[package]]
+name = "w65c02s"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12f917b148b9233a98b6faaa3d3363996eec5aa5f83e9fc06950e068739f6382"
