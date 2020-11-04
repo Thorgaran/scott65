@@ -1,5 +1,4 @@
-use super::parser::{Program, Exp};
-use crate::tokens::Value;
+use super::parser::{Program, Exp, Const};
 
 pub struct Assembly {
     asm: Vec<String>,
@@ -48,9 +47,8 @@ impl Assembly {
 
     fn gen_exp(&mut self, exp: Exp) {
         match exp {
-            Exp::Value(val) => match val {
-                Value::Any => panic!("Invalid Exp variant (Any should only be used for comparisons)"),
-                Value::Int(val) => self.add_inden(format!("lda #{}", val)),
+            Exp::Constant(constant) => match constant {
+                Const::UInt(val) => self.add_inden(format!("lda #{}", val)),
             },
         }
     }

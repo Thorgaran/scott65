@@ -41,13 +41,22 @@ impl Lexer {
         self.input_chars.peek()
     }
 
-    pub fn get_string<F>(&mut self, first_char: char, func: F) -> String
+    pub fn get_string<F>(&mut self, func: F) -> String
     where F : Fn(&char) -> bool {
-        let (_, mut string): (Vec<Position>, String) = 
+        let (_, string): (Vec<Position>, String) = 
             self.input_chars.peeking_take_while(|(_, c)| func(c)).unzip();
-        string.insert(0, first_char);
 
         string
+    }
+
+    pub fn lex_number(&mut self, pos: Position, radix: Radix) {
+        let number_str = self.get_string(|x| x.is_digit(16));
+        self.push_token(Token {
+            kind: TokenKind::Literal(
+                Value::Int(radix, number_str)
+            ),
+            pos: pos.clone()
+        });
     }
 }
 
@@ -56,20 +65,29 @@ pub fn lex(input: &str) -> TokList {
     let mut lexer = Lexer::new(input);
     
 
-    while let Some((pos, c)) = lexer.next() {
+    while let Some((pos, c)) = lexer.peek() {
         match c {
-            '(' => lexer.push_token(Token { kind: TokenKind::OpenParen, pos }),
-            ')' => lexer.push_token(Token { kind: TokenKind::CloseParen, pos }),
-            '0'..='9' => {
-                let number_str = lexer.get_string(c, |x| x.is_ascii_digit());
-                lexer.push_token(Token {
-                    kind: TokenKind::Literal(
-                        Value::Int(number_str.parse().unwrap())
-                    ),
-                    pos
-                });
+            '(' => if let Some((pos, _)) = lexer.next() {
+                lexer.push_token(Token { kind: TokenKind::OpenParen, pos });
             },
-            ' ' => continue,
+            ')' => if let Some((pos, _)) = lexer.next() {
+                lexer.push_token(Token { kind: TokenKind::CloseParen, pos });
+            },
+            '0'..='9' => {
+                let pos = pos.clone();
+                lexer.lex_number(pos, Radix::Dec);
+            },
+            '#' => if let Some((pos, _)) = lexer.next() {
+                match lexer.next() {
+                    Some((_, 'b')) => lexer.lex_number(pos, Radix::Bin),
+                    Some((_, 'o')) => lexer.lex_number(pos, Radix::Oct),
+                    Some((_, 'd')) => lexer.lex_number(pos, Radix::Dec),
+                    Some((_, 'x')) => lexer.lex_number(pos, Radix::Hex),
+                    Some((_, c)) => lexer.lex_number(pos, Radix::Unknown(format!("#{}", c))),
+                    None => lexer.lex_number(pos, Radix::Unknown(String::from("#"))),
+                };
+            },
+            ' ' => { lexer.next(); },
             _ => panic!("Invalid character: {}", c),
         }
     }
@@ -91,7 +109,10 @@ mod tests {
     fn paren_and_int() {
         let expected_tokens = TokList::from(vec![
             Token { 
-                kind: TokenKind::Literal(Value::Int(1)), 
+                kind: TokenKind::Literal(Value::Int(
+                    Radix::Dec, 
+                    String::from("1")
+                )), 
                 pos: Position { line: 0, column: 0 }
             },
             Token { 
@@ -103,7 +124,10 @@ mod tests {
                 pos: Position { line: 0, column: 4 }
             },
             Token { 
-                kind: TokenKind::Literal(Value::Int(255)), 
+                kind: TokenKind::Literal(Value::Int(
+                    Radix::Dec, 
+                    String::from("255")
+                )), 
                 pos: Position { line: 0, column: 6 }
             },
             Token { 
@@ -111,7 +135,10 @@ mod tests {
                 pos: Position { line: 0, column: 10 }
             },
             Token { 
-                kind: TokenKind::Literal(Value::Int(0)), 
+                kind: TokenKind::Literal(Value::Int(
+                    Radix::Dec, 
+                    String::from("0")
+                )), 
                 pos: Position { line: 0, column: 11 }
             },
         ]);

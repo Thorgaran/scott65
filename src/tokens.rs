@@ -29,7 +29,43 @@ pub struct Position {
 pub enum Value {
     // The Any variant is used for comparison purposes
     Any,
-    Int(u8),
+    Int(Radix, String),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Radix {
+    Unknown(String),
+    Bin,
+    Oct,
+    Dec,
+    Hex,
+}
+
+impl Radix {
+    /// Test whether or not the radix is Radix::Unknown
+    pub fn is_unknown(&self) -> bool {
+        mem::discriminant(self) == mem::discriminant(&Radix::Unknown(String::from("")))
+    }
+
+    /// Get the base corresponding to a radix.
+    /// Function will panic on Radix::Unknown.
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// use scott65::tokens::Radix;
+    /// 
+    /// assert_eq!(Radix::Hex.get_base(), 16);
+    /// ```
+    pub fn get_base(&self) -> u32 {
+        match self {
+            Radix::Unknown(_) => panic!("An unknown radix doesn't have a corresponding base"),
+            Radix::Bin => 2,
+            Radix::Oct => 8,
+            Radix::Dec => 10,
+            Radix::Hex => 16,
+        }
+    }
 }
 
 impl fmt::Display for Token {
@@ -60,7 +96,19 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
             Value::Any => String::from(""),
-            Value::Int(val) => format!(": {}", val),
+            Value::Int(rad, val) => format!(": {}{}", rad, val),
+        })
+    }
+}
+
+impl fmt::Display for Radix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Radix::Unknown(s) => s,
+            Radix::Bin => "#b",
+            Radix::Oct => "#o",
+            Radix::Dec => "",
+            Radix::Hex => "#x",
         })
     }
 }
@@ -108,7 +156,7 @@ impl TokPeekable {
     }
 
     /// Returns an error if the next token isn't of a given expected kind.
-    /// Otherwise, returns the kind of the next token (thus calling next() on the peekable)
+    /// Otherwise, returns the next token (thus calling next() on the peekable)
     /// 
     /// Note that the values inside the variants are ignored for the comparison.
     /// 
@@ -119,10 +167,10 @@ impl TokPeekable {
     /// use tokens::*;
     /// 
     /// let wrong_expected_token = TokenKind::OpenParen;
-    /// let expected_token = TokenKind::Literal(Value::Int(123));
+    /// let expected_token = TokenKind::Literal(Value::Int(Radix::Dec, String::from("123")));
     /// 
     /// let actual_token = Token { 
-    ///     kind: TokenKind::Literal(Value::Int(42)),
+    ///     kind: TokenKind::Literal(Value::Int(Radix::Dec, String::from("42"))),
     ///     pos: Position {line: 0, column: 0}
     /// };
     /// let mut actual_token_peekable = TokPeekable::from(TokList::from(vec![actual_token.clone()]));
@@ -136,7 +184,7 @@ impl TokPeekable {
     /// // Right token
     /// assert_eq!(
     ///     actual_token_peekable.expect_next(expected_token.clone()), 
-    ///     Ok(actual_token.kind)
+    ///     Ok(actual_token)
     /// );
     /// 
     /// // End of file
@@ -145,11 +193,11 @@ impl TokPeekable {
     ///     Err(ParseError { kind: ErrorKind::EndOfFile(expected_token) })
     /// );
     /// ```
-    pub fn expect_next(&mut self, expected: TokenKind) -> Result<TokenKind, ParseError> {
+    pub fn expect_next(&mut self, expected: TokenKind) -> Result<Token, ParseError> {
         match self.0.peek() {
             Some(tok) => {
                 if mem::discriminant(&tok.kind) == mem::discriminant(&expected) {
-                    Ok(self.next().unwrap().kind)
+                    Ok(self.next().unwrap())
                 } else {
                     Err(ParseError { kind: ErrorKind::WrongToken(vec![expected], tok.clone()) })
                 }
@@ -158,16 +206,19 @@ impl TokPeekable {
         }
     }
 
-    /// Compares the token to another one, returns Some(token) if they are equal and None otherwise.
+    /// Compares the token to another one, returns true if they are equal and false otherwise.
     /// 
     /// Returns an error if the end of the token list is reached.
-    pub fn get_next_if(&mut self, other: TokenKind) -> Result<Option<TokenKind>, ParseError> {
-        match self.expect_next(other) {
-            Err(err) => match err.kind {
-                ErrorKind::WrongToken(_, _) => Ok(None),
-                ErrorKind::EndOfFile(_) => Err(err),
+    pub fn is_next(&mut self, other: TokenKind) -> Result<bool, ParseError> {
+        match self.0.peek() {
+            Some(tok) => {
+                if mem::discriminant(&tok.kind) == mem::discriminant(&other) {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
             },
-            Ok(tok) => Ok(Some(tok)),
+            None => Err(ParseError { kind: ErrorKind::EndOfFile(other) }),
         }
     }
 
@@ -197,6 +248,34 @@ pub enum ErrorKind {
     WrongToken(Vec<TokenKind>, Token),
     /// EndOfFile(expected_token): Expected a token but reached the end of the source file.
     EndOfFile(TokenKind),
+    /// UnknownRadix(token): This radix isn't defined in the Scheme programming language. 
+    /// Token must ben an Int Literal.
+    UnknownRadix(Token),
+    /// UIntOverflow(token): The number given isn't between 0 and 255. 
+    /// Token must be an Int Literal.
+    UIntOverflow(Token),
+}
+
+impl ParseError {
+    pub fn err_pretty_print(&self, filename: &str, source_code: &str) {
+        let err_pos = match &self.kind {
+            ErrorKind::WrongToken(_, actual) => actual.pos.clone(),
+            ErrorKind::EndOfFile(_) => {
+                let line = source_code.lines().count();
+                Position {
+                    line,
+                    column: source_code.lines().nth(line).unwrap().chars().count(),
+                }
+            },
+            ErrorKind::UnknownRadix(token) => token.pos.clone(),
+            ErrorKind::UIntOverflow(token) => token.pos.clone(),
+        };
+    
+        eprintln!("Parsing error: {}", self);
+        eprintln!(" --> {}", filename);
+        eprintln!("{} | {}", err_pos.line, source_code.lines().nth(err_pos.line).unwrap());
+        eprintln!("    {}^", " ".repeat(err_pos.column));
+    }
 }
 
 impl Error for ParseError {}
@@ -204,20 +283,35 @@ impl Error for ParseError {}
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.kind {
-            ErrorKind::WrongToken(expected, actual) => {
-                match expected.len() {
-                    0 => panic!("Empty list of expected tokens"),
-                    1 => write!(f, "Expected {}, got {}", expected[0], actual),
-                    _ => write!(f, "Expected one of [{}], got {}", 
-                        expected.iter()
-                            .map(|x| x.to_string())
-                            .collect::<Vec<String>>()
-                            .join(", "), 
-                        actual)
-                }
+            ErrorKind::WrongToken(expected, actual) => match expected.len() {
+                0 => panic!("Empty list of expected tokens"),
+                1 => write!(f, "Expected {}, got {}", expected[0], actual),
+                _ => write!(f, "Expected one of [{}], got {}", 
+                    expected.iter()
+                        .map(|x| x.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", "), 
+                    actual)
             },
             ErrorKind::EndOfFile(expected) =>
                 write!(f, "Expected {} but reached the end of the source file", expected),
+            ErrorKind::UnknownRadix(token) => {
+                if let TokenKind::Literal(Value::Int(rad, _)) = &token.kind {
+                    write!(f, "Unknown radix: '{}'. The supported radix are '#b', '#o', '#d' and '#x'.", rad)
+                }
+                else {
+                    panic!("The token isn't an Int Literal")
+                }
+            },
+            ErrorKind::UIntOverflow(token) => {
+                if let TokenKind::Literal(value) = &token.kind {
+                    write!(f, "Invalid number{}. The 6502 only supports numbers between 0 and 255", value)
+                }
+                else {
+                    panic!("The token isn't a Literal")
+                }
+            },
+                
         }
     }
 }

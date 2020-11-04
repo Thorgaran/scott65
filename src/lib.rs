@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::error::Error;
-use tokens::{ParseError, ErrorKind, Position};
+use tokens::ParseError;
 use std::io::{self, Read, Write};
 
 pub mod tokens;
@@ -25,7 +25,7 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let program = match parser::parse(tokens) {
         Ok(asm) => asm,
         Err(err) => {
-            err_pretty_print(&err, &config.source, &source_code);
+            ParseError::err_pretty_print(&err, &config.source, &source_code);
             return Err(Box::new(err));
         },
     };
@@ -51,22 +51,4 @@ fn write_asm_file(path: &str, asm: &str) -> Result<(), io::Error> {
     File::create(path)?.write(asm.as_bytes())?;
     
     Ok(())
-}
-
-fn err_pretty_print(err: &ParseError, filename: &str, source_code: &str) {
-    let err_pos = match &err.kind {
-        ErrorKind::WrongToken(_, actual) => actual.pos.clone(),
-        ErrorKind::EndOfFile(_) => {
-            let line = source_code.lines().count();
-            Position {
-                line,
-                column: source_code.lines().nth(line).unwrap().chars().count(),
-            }
-        },
-    };
-
-    eprintln!("Parsing error: {}", err);
-    eprintln!(" --> {}", filename);
-    eprintln!("{} | {}", err_pos.line, source_code.lines().nth(err_pos.line).unwrap());
-    eprintln!("    {}^", " ".repeat(err_pos.column));
 }
