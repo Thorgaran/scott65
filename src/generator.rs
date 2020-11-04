@@ -49,6 +49,7 @@ impl Assembly {
     fn gen_exp(&mut self, exp: Exp) {
         match exp {
             Exp::Value(val) => match val {
+                Value::Any => panic!("Invalid Exp variant (Any should only be used for comparisons)"),
                 Value::Int(val) => self.add_inden(format!("lda #{}", val)),
             },
         }

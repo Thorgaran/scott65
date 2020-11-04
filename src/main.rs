@@ -1,11 +1,13 @@
 use scott65::Config;
-use std::error::Error;
+use std::process;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let config = Config {
         filename: String::from("scm_files/test.scm"),
         output: String::from("scm_files/test.asm")
     };
 
-    scott65::run(config)
+    if let Err(_) = scott65::run(config) {
+        process::exit(1);
+    }
 }

@@ -27,6 +27,8 @@ pub struct Position {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
+    // The Any variant is used for comparison purposes
+    Any,
     Int(u8),
 }
 
@@ -41,7 +43,7 @@ impl fmt::Display for TokenKind {
         let token_str = match self {
             TokenKind::OpenParen => String::from("("),
             TokenKind::CloseParen => String::from(")"),
-            TokenKind::Literal(val) => format!("Literal: {}", val),
+            TokenKind::Literal(val) => format!("Literal{}", val),
         };
 
         write!(f, "'{}'", token_str)
@@ -57,7 +59,8 @@ impl fmt::Display for Position {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", match self {
-            Value::Int(val) => val,
+            Value::Any => String::from(""),
+            Value::Int(val) => format!(": {}", val),
         })
     }
 }
@@ -98,6 +101,10 @@ pub struct TokPeekable(Peekable<Box<dyn Iterator<Item = Token>>>);
 impl TokPeekable {
     pub fn from(tokens: TokList) -> TokPeekable {
         TokPeekable((Box::new(tokens.0.into_iter()) as Box<dyn Iterator<Item = Token>>).peekable())
+    }
+
+    pub fn next(&mut self) -> Option<Token> {
+        self.0.next()
     }
 
     /// Returns an error if the next token isn't of a given expected kind.
@@ -142,7 +149,7 @@ impl TokPeekable {
         match self.0.peek() {
             Some(tok) => {
                 if mem::discriminant(&tok.kind) == mem::discriminant(&expected) {
-                    Ok(self.0.next().unwrap().kind)
+                    Ok(self.next().unwrap().kind)
                 } else {
                     Err(ParseError { kind: ErrorKind::WrongToken(vec![expected], tok.clone()) })
                 }
@@ -151,17 +158,27 @@ impl TokPeekable {
         }
     }
 
-    /// Compares the token to another one, returns true if they are equal and false otherwise.
+    /// Compares the token to another one, returns Some(token) if they are equal and None otherwise.
     /// 
     /// Returns an error if the end of the token list is reached.
-    pub fn is_next(&mut self, other: TokenKind) -> Result<bool, ParseError> {
+    pub fn get_next_if(&mut self, other: TokenKind) -> Result<Option<TokenKind>, ParseError> {
         match self.expect_next(other) {
             Err(err) => match err.kind {
-                ErrorKind::WrongToken(_, _) => Ok(false),
+                ErrorKind::WrongToken(_, _) => Ok(None),
                 ErrorKind::EndOfFile(_) => Err(err),
             },
-            Ok(_) => Ok(true),
+            Ok(tok) => Ok(Some(tok)),
         }
+    }
+
+    /// Returns a ParseError with a WrongToken kind.ParseError
+    /// 
+    /// Consumes one element from the tokens iterator.
+    pub fn raise_wrong_token(&mut self, expected_tokens: &[TokenKind]) -> ParseError {
+        ParseError { kind: ErrorKind::WrongToken(
+            expected_tokens.to_vec(),
+            self.next().expect("No tokens left when one was expected")
+        )}
     }
 }
 
@@ -191,8 +208,11 @@ impl fmt::Display for ParseError {
                 match expected.len() {
                     0 => panic!("Empty list of expected tokens"),
                     1 => write!(f, "Expected {}, got {}", expected[0], actual),
-                    _ => write!(f, "Expected one of {}, got {}", 
-                        expected.iter().map(|x| x.to_string()).collect::<String>(), 
+                    _ => write!(f, "Expected one of [{}], got {}", 
+                        expected.iter()
+                            .map(|x| x.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", "), 
                         actual)
                 }
             },

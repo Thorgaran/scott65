@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::error::Error;
-use tokens::ParseError;
+use tokens::{ParseError, ErrorKind, Position};
 use std::io::{self, Read, Write};
 
 pub mod tokens;
@@ -17,7 +17,13 @@ pub struct Config {
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let source_code = read_scheme_file(&config.filename)?;
 
-    let assembly = compile(&source_code)?;
+    let assembly = match compile(&source_code) {
+        Ok(asm) => asm,
+        Err(err) => {
+            err_pretty_print(&err, &config.filename, &source_code);
+            return Err(Box::new(err));
+        },
+    };
 
     write_asm_file(&config.output, &assembly)?;
 
@@ -30,13 +36,7 @@ pub fn compile(source_code: &str) -> Result<String, ParseError> {
     #[cfg(any(feature = "test", test))]
    println!("{}", tokens);
 
-    let program = match parser::parse(tokens) {
-        Ok(prgm) => prgm,
-        Err(err) => {
-            eprintln!("Parsing error: {}", err);
-            return Err(err);
-        },
-    };
+    let program = parser::parse(tokens)?;
 
     #[cfg(any(feature = "test", test))]
     println!("{}", program);
@@ -55,4 +55,22 @@ pub fn write_asm_file(path: &str, asm: &str) -> Result<(), io::Error> {
     File::create(path)?.write(asm.as_bytes())?;
     
     Ok(())
+}
+
+fn err_pretty_print(err: &ParseError, filename: &str, source_code: &str) {
+    let err_pos = match &err.kind {
+        ErrorKind::WrongToken(_, actual) => actual.pos.clone(),
+        ErrorKind::EndOfFile(_) => {
+            let line = source_code.lines().count();
+            Position {
+                line,
+                column: source_code.lines().nth(line).unwrap().chars().count(),
+            }
+        },
+    };
+
+    eprintln!("Parsing error: {}", err);
+    eprintln!(" --> {}", filename);
+    eprintln!("{} | {}", err_pos.line, source_code.lines().nth(err_pos.line).unwrap());
+    eprintln!("    {}^", " ".repeat(err_pos.column));
 }

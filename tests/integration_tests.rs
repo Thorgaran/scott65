@@ -1,7 +1,7 @@
 extern crate w65c02s;
 use scott65;
 use w65c02s::{System, W65C02S, State};
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Read;
 use std::process::Command;
 
@@ -106,7 +106,7 @@ fn run_tests(tests: Vec<Test>) {
         assert!(vasm_output.status.success(), "Vasm error: {}", stderr_str);
 
         let mut program: [u8; 32_768] = [0x00; 32_768];
-        File::open(bin_path)
+        File::open(&bin_path)
             .expect("Failed to open binary file")
             .read(&mut program)
             .expect("Failed to read binary file as a 32 768 bytes array");
@@ -119,6 +119,12 @@ fn run_tests(tests: Vec<Test>) {
         }
 
         assert_eq!(format!("{}", system.serial[0]), test.expected_output);
+
+        // Clean up the test files (if the test was successful so far)
+        fs::remove_file(asm_path)
+            .expect("Failed to remove binary file");
+        fs::remove_file(bin_path)
+            .expect("Failed to remove binary file");
     }
 }
 

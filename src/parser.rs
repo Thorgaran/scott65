@@ -16,22 +16,26 @@ pub fn parse(tokens: TokList) -> Result<Program, ParseError> {
 
 impl Exp {
     fn from_parse(tokens: &mut TokPeekable) -> Result<Exp, ParseError> {
-        if tokens.is_next(TokenKind::OpenParen)? {
+        if let Some(_) = tokens.get_next_if(TokenKind::OpenParen)? {
             let exp = Exp::from_parse(tokens)?;
             
             tokens.expect_next(TokenKind::CloseParen)?;
 
             Ok(exp)
         } 
-        else {
-            let next_tok = tokens.expect_next(TokenKind::Literal(Value::Int(0)))?;
-            
+        else if let Some(next_tok) = tokens.get_next_if(TokenKind::Literal(Value::Any))? {
             if let TokenKind::Literal(value) = next_tok {
                 Ok(Exp::Value(value))
             }
             else {
                 panic!("expect_next didn't return a valid Literal token")
             }
+        }
+        else {
+            Err(tokens.raise_wrong_token(&[
+                TokenKind::OpenParen,
+                TokenKind::Literal(Value::Any),
+            ]))
         }
     }
 }
