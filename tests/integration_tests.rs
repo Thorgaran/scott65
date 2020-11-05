@@ -86,6 +86,7 @@ fn assemble(asm_path: &str, bin_path: &str) {
         .arg(&asm_path) // input file
         .arg("-Fbin") // binary output module
         .arg("-wdc02") // the processor used is a w65c02s
+        .arg("-esc") // allow character escapes
         .arg("-dotdir") // directives are preceeded by a dot
         .arg("-chklabels") // warn when a label matches a mnemonic/directive
         .arg("-wfail") // all warnings are errors
@@ -158,8 +159,8 @@ fn run_bin(bin_path: &str) -> String {
 }
 
 #[test]
-fn integers() {
-    let name = "integers";
+fn constants() {
+    let name = "constants";
 
     let tests = read_test_file(name);
     run_tests(tests);

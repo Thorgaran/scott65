@@ -58,6 +58,16 @@ impl Lexer {
             pos: pos.clone()
         });
     }
+
+    pub fn lex_char(&mut self, pos: Position) {
+        let char_str = self.get_string(|x| x.is_ascii());
+        self.push_token(Token {
+            kind: TokenKind::Literal(
+                Value::Char(char_str)
+            ),
+            pos: pos.clone()
+        });
+    }
 }
 
 /// Translates a Scheme string into Tokens
@@ -83,6 +93,11 @@ pub fn lex(input: &str) -> TokList {
                     Some((_, 'o')) => lexer.lex_number(pos, Radix::Oct),
                     Some((_, 'd')) => lexer.lex_number(pos, Radix::Dec),
                     Some((_, 'x')) => lexer.lex_number(pos, Radix::Hex),
+                    Some((_, '\\')) => lexer.lex_char(pos),
+                    Some((_, 't')) => 
+                        lexer.push_token(Token { kind: TokenKind::Literal(Value::Bool(true)), pos }),
+                    Some((_, 'f')) => 
+                        lexer.push_token(Token { kind: TokenKind::Literal(Value::Bool(false)), pos }),
                     Some((_, c)) => lexer.lex_number(pos, Radix::Unknown(format!("#{}", c))),
                     None => lexer.lex_number(pos, Radix::Unknown(String::from("#"))),
                 };

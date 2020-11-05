@@ -30,6 +30,8 @@ pub enum Value {
     // The Any variant is used for comparison purposes
     Any,
     Int(Radix, String),
+    Bool(bool),
+    Char(String),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -79,7 +81,7 @@ impl fmt::Display for TokenKind {
         let token_str = match self {
             TokenKind::OpenParen => String::from("("),
             TokenKind::CloseParen => String::from(")"),
-            TokenKind::Literal(val) => format!("Literal{}", val),
+            TokenKind::Literal(val) => format!("Literal: {}", val),
         };
 
         write!(f, "'{}'", token_str)
@@ -94,10 +96,12 @@ impl fmt::Display for Position {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", match self {
-            Value::Any => String::from(""),
-            Value::Int(rad, val) => format!(": {}{}", rad, val),
-        })
+        match self {
+            Value::Any => write!(f, "any"),
+            Value::Int(rad, val) => write!(f, "{}{}", rad, val),
+            Value::Bool(bol) => write!(f, "{}", bol),
+            Value::Char(c_name) => write!(f, "{}", c_name),
+        }
     }
 }
 
@@ -254,6 +258,9 @@ pub enum ErrorKind {
     /// UIntOverflow(token): The number given isn't between 0 and 255. 
     /// Token must be an Int Literal.
     UIntOverflow(Token),
+    /// InvalidChar(token): Invalid character name (missing or unknown).
+    /// The token must be a char Literal.
+    InvalidChar(Token),
 }
 
 impl ParseError {
@@ -269,6 +276,7 @@ impl ParseError {
             },
             ErrorKind::UnknownRadix(token) => token.pos.clone(),
             ErrorKind::UIntOverflow(token) => token.pos.clone(),
+            ErrorKind::InvalidChar(token) => token.pos.clone(),
         };
     
         eprintln!("Parsing error: {}", self);
@@ -297,7 +305,7 @@ impl fmt::Display for ParseError {
                 write!(f, "Expected {} but reached the end of the source file", expected),
             ErrorKind::UnknownRadix(token) => {
                 if let TokenKind::Literal(Value::Int(rad, _)) = &token.kind {
-                    write!(f, "Unknown radix: '{}'. The supported radix are '#b', '#o', '#d' and '#x'.", rad)
+                    write!(f, "Unknown radix: '{}'. The supported radix are '#b', '#o', '#d' and '#x'", rad)
                 }
                 else {
                     panic!("The token isn't an Int Literal")
@@ -305,13 +313,20 @@ impl fmt::Display for ParseError {
             },
             ErrorKind::UIntOverflow(token) => {
                 if let TokenKind::Literal(value) = &token.kind {
-                    write!(f, "Invalid number{}. The 6502 only supports numbers between 0 and 255", value)
+                    write!(f, "Invalid number: '{}'. The 6502 only supports numbers between 0 and 255", value)
                 }
                 else {
                     panic!("The token isn't a Literal")
                 }
             },
-                
+            ErrorKind::InvalidChar(token) => {
+                if let TokenKind::Literal(Value::Char(c_name)) = &token.kind {
+                    write!(f, "Invalid character name: '{}'. Only simple ASCII is supported", c_name)
+                }
+                else {
+                    panic!("The token isn't a char Literal")
+                }
+            },
         }
     }
 }

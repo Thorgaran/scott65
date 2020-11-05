@@ -47,8 +47,27 @@ impl Assembly {
 
     fn gen_exp(&mut self, exp: Exp) {
         match exp {
-            Exp::Constant(constant) => match constant {
-                Const::UInt(val) => self.add_inden(format!("lda #{}", val)),
+            Exp::Constant(constant) => self.add_inden(format!("lda #{}", 
+                Assembly::gen_const(constant)
+            )),
+        }
+    }
+
+    fn gen_const(constant: Const) -> String {
+        match constant {
+            Const::UInt(uint) => uint.to_string(),
+            Const::Bool(true) => String::from("1"),
+            Const::Bool(false) => String::from("0"),
+            Const::Char(c) => {
+                let c_esc = c.escape_default().to_string();
+                // if c has been escaped to Unicode
+                if c_esc.contains(r"\u{") {
+                    (c as usize).to_string()
+                }
+                // else, c has been escaped to something vasm supports
+                else {
+                    format!("'{}'", c_esc)
+                }
             },
         }
     }

@@ -12,6 +12,8 @@ pub enum Exp {
 #[derive(Debug, PartialEq)]
 pub enum Const {
     UInt(u8),
+    Bool(bool),
+    Char(char),
 }
 
 pub fn parse(tokens: TokList) -> Result<Program, ParseError> {
@@ -65,7 +67,38 @@ impl Const {
                             }),
                         }
                     }
-                }
+                },
+                Value::Bool(bol) => Ok(Const::Bool(*bol)),
+                Value::Char(char_str) => {
+                    let character = if char_str.len() == 0 {
+                        None
+                    }
+                    else if char_str.len() == 1 {
+                        let c = char_str.chars().next().unwrap();
+            
+                        if c.is_ascii_graphic() { Some(c) } else { None }
+                    }
+                    else { match &char_str[..] {
+                        "altmode" => Some('\u{001b}'),
+                        "backnext" => Some('\u{001f}'),
+                        "backspace" => Some('\u{0008}'),
+                        "call" => Some('\u{001a}'),
+                        "linefeed" | "newline" => Some('\u{000a}'),
+                        "page" => Some('\u{000c}'),
+                        "return" => Some('\u{000d}'),
+                        "rubout" => Some('\u{007f}'),
+                        "space" => Some(' '),
+                        "tab" => Some('\u{0009}'),
+                        _ => None,
+                    }};
+                    
+                    match character {
+                        Some(c) => Ok(Const::Char(c)),
+                        None => Err(ParseError { kind:
+                            ErrorKind::InvalidChar(next_tok.clone()),
+                        })
+                    }
+                },
             }
         }
         else { unreachable![] }
@@ -89,7 +122,9 @@ impl fmt::Display for Exp {
 impl fmt::Display for Const {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Const::UInt(val) => write!(f, "{}", val),
+            Const::UInt(uint) => write!(f, "{}", uint),
+            Const::Bool(bol) => write!(f, "{}", bol),
+            Const::Char(c) => write!(f, "'{}'", c.escape_default()),
         }
     }
 }
