@@ -60,7 +60,10 @@ impl Lexer {
     }
 
     pub fn lex_char(&mut self, pos: Position) {
-        let char_str = self.get_string(|x| x.is_ascii());
+        let char_str = match self.peek() {
+            Some((_, '(')) |  Some((_, ')')) => String::from(self.next().unwrap().1),
+            _ => self.get_string(|c| c.is_ascii_graphic() && c != &'(' && c != &')'),
+        };
         self.push_token(Token {
             kind: TokenKind::Literal(
                 Value::Char(char_str)
