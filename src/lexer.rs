@@ -25,8 +25,8 @@ impl Lexer {
         }
     }
 
-    pub fn push_token(&mut self, token: Token) {
-        self.tokens.push(token);
+    pub fn push_token(&mut self, pos: Position, kind: TokenKind) {
+        self.tokens.push(Token { kind, pos });
     }
 
     pub fn next(&mut self) -> Option<(Position, char)> {
@@ -41,36 +41,36 @@ impl Lexer {
         self.input_chars.peek()
     }
 
-    pub fn get_string<F>(&mut self, func: F) -> String
+    pub fn get_string<F>(&mut self, func: F) -> (Option<Position>, String)
     where F : Fn(&char) -> bool {
-        let (_, string): (Vec<Position>, String) = 
+        let (positions, string): (Vec<Position>, String) = 
             self.input_chars.peeking_take_while(|(_, c)| func(c)).unzip();
 
-        string
+        (positions.into_iter().next(), string)
     }
 
     pub fn lex_number(&mut self, pos: Position, radix: Radix) {
-        let number_str = self.get_string(|x| x.is_digit(16));
-        self.push_token(Token {
-            kind: TokenKind::Literal(
+        let (_, number_str) = self.get_string(|x| x.is_digit(16));
+        self.push_token(pos.clone(), TokenKind::Literal(
                 Value::Int(radix, number_str)
             ),
-            pos: pos.clone()
-        });
+        );
     }
 
     pub fn lex_char(&mut self, pos: Position) {
         let char_str = match self.peek() {
             Some((_, '(')) |  Some((_, ')')) => String::from(self.next().unwrap().1),
-            _ => self.get_string(|c| c.is_ascii_graphic() && c != &'(' && c != &')'),
+            _ => self.get_string(|c| is_not_delimiter(c)).1,
         };
-        self.push_token(Token {
-            kind: TokenKind::Literal(
+        self.push_token(pos.clone(), TokenKind::Literal(
                 Value::Char(char_str)
             ),
-            pos: pos.clone()
-        });
+        );
     }
+}
+
+fn is_not_delimiter(c: &char) -> bool {
+    c.is_ascii_graphic() && c != &'(' && c != &')'
 }
 
 /// Translates a Scheme string into Tokens
@@ -81,10 +81,10 @@ pub fn lex(input: &str) -> TokList {
     while let Some((pos, c)) = lexer.peek() {
         match c {
             '(' => if let Some((pos, _)) = lexer.next() {
-                lexer.push_token(Token { kind: TokenKind::OpenParen, pos });
+                lexer.push_token(pos, TokenKind::OpenParen);
             },
             ')' => if let Some((pos, _)) = lexer.next() {
-                lexer.push_token(Token { kind: TokenKind::CloseParen, pos });
+                lexer.push_token(pos, TokenKind::CloseParen);
             },
             '0'..='9' => {
                 let pos = pos.clone();
@@ -98,11 +98,22 @@ pub fn lex(input: &str) -> TokList {
                     Some((_, 'x')) => lexer.lex_number(pos, Radix::Hex),
                     Some((_, '\\')) => lexer.lex_char(pos),
                     Some((_, 't')) => 
-                        lexer.push_token(Token { kind: TokenKind::Literal(Value::Bool(true)), pos }),
+                        lexer.push_token(pos, TokenKind::Literal(Value::Bool(true))),
                     Some((_, 'f')) => 
-                        lexer.push_token(Token { kind: TokenKind::Literal(Value::Bool(false)), pos }),
+                        lexer.push_token(pos, TokenKind::Literal(Value::Bool(false))),
                     Some((_, c)) => lexer.lex_number(pos, Radix::Unknown(format!("#{}", c))),
                     None => lexer.lex_number(pos, Radix::Unknown(String::from("#"))),
+                };
+            },
+            'a'..='z' | 'A'..='Z' => {
+                let (pos, word) = lexer.get_string(|x| is_not_delimiter(x));
+                match &word[..] {
+                    "add1" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Add1)),
+                    "sub1" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Sub1)),
+                    "zero?" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Zero)),
+                    "not" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Not)),
+                    "bitwise-not" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::BitwiseNot)),
+                    _ => todo!(), // identifier
                 };
             },
             ' ' => { lexer.next(); },

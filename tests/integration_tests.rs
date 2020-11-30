@@ -165,3 +165,10 @@ fn constants() {
     let tests = read_test_file(name);
     run_tests(tests);
 }
+
+#[test]
+fn operators() {
+    let name = "operators";
+    let tests = read_test_file(name);
+    run_tests(tests);
+}

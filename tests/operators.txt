@@ -1,0 +1,9 @@
+add1_zeroː (add1 0)⟶1；
+sub1_oneː (sub1 1)⟶0；
+zero_zeroː (zero? 0)⟶1；
+zero_oneː (zero? 1)⟶0；
+zero_uint_maxː (zero? 255)⟶0；
+not_trueː (not #t)⟶0；
+not_falseː (not #f)⟶1；
+bit_not_zeroː (bitwise-not #b00000000)⟶255；
+bit_not_42ː (bitwise-not #b00101010)⟶213；

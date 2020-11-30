@@ -16,6 +16,7 @@ pub enum TokenKind {
     OpenParen,
     CloseParen,
     Literal(Value),
+    Operator(Operator),
 }
 
 // Used to store the position of a token in the input string
@@ -41,6 +42,17 @@ pub enum Radix {
     Oct,
     Dec,
     Hex,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Operator {
+    // The Any variant is used for comparison purposes
+    Any,
+    Add1,
+    Sub1,
+    Zero,
+    Not,
+    BitwiseNot,
 }
 
 impl Radix {
@@ -82,6 +94,7 @@ impl fmt::Display for TokenKind {
             TokenKind::OpenParen => String::from("("),
             TokenKind::CloseParen => String::from(")"),
             TokenKind::Literal(val) => format!("Literal: {}", val),
+            TokenKind::Operator(op) => format!("Operator: {}", op),
         };
 
         write!(f, "'{}'", token_str)
@@ -113,6 +126,19 @@ impl fmt::Display for Radix {
             Radix::Oct => "#o",
             Radix::Dec => "",
             Radix::Hex => "#x",
+        })
+    }
+}
+
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Operator::Any => "any",
+            Operator::Add1 => "add1",
+            Operator::Sub1 => "sub1",
+            Operator::Zero => "zero?",
+            Operator::Not => "not",
+            Operator::BitwiseNot => "bitwise-not"
         })
     }
 }
@@ -268,7 +294,7 @@ impl ParseError {
         let err_pos = match &self.kind {
             ErrorKind::WrongToken(_, actual) => actual.pos.clone(),
             ErrorKind::EndOfFile(_) => {
-                let line = source_code.lines().count();
+                let line = source_code.lines().count() - 1;
                 Position {
                     line,
                     column: source_code.lines().nth(line).unwrap().chars().count(),

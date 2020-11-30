@@ -6,6 +6,7 @@ pub struct Program(pub Exp);
 
 #[derive(Debug, PartialEq)]
 pub enum Exp {
+    ProcCall(Proc),
     Constant(Const),
 }
 
@@ -14,6 +15,15 @@ pub enum Const {
     UInt(u8),
     Bool(bool),
     Char(char),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Proc {
+    Add1(Box<Exp>),
+    Sub1(Box<Exp>),
+    Zero(Box<Exp>),
+    Not(Box<Exp>),
+    BitwiseNot(Box<Exp>),
 }
 
 pub fn parse(tokens: TokList) -> Result<Program, ParseError> {
@@ -25,12 +35,12 @@ impl Exp {
     fn from_parse(tokens: &mut TokPeekable) -> Result<Exp, ParseError> {
         if tokens.is_next(TokenKind::OpenParen)? {
             tokens.expect_next(TokenKind::OpenParen)?;
-
-            let exp = Exp::from_parse(tokens)?;
+            
+            let procedure = Proc::from_parse(tokens)?;
 
             tokens.expect_next(TokenKind::CloseParen)?;
 
-            Ok(exp)
+            Ok(Exp::ProcCall(procedure))
         } 
         else if tokens.is_next(TokenKind::Literal(Value::Any))? {
             let constant = Const::from_parse(tokens)?;
@@ -43,6 +53,24 @@ impl Exp {
                 TokenKind::Literal(Value::Any),
             ]))
         }
+    }
+}
+
+impl Proc {
+    fn from_parse(tokens: &mut TokPeekable) -> Result<Proc, ParseError> {
+        let next_tok = tokens.expect_next(TokenKind::Operator(Operator::Any))?;
+
+        if let TokenKind::Operator(op) = next_tok.kind {
+            match op {
+                Operator::Any => panic!("Any should only be used for comparison purposes"),
+                Operator::Add1 => Ok(Proc::Add1(Box::from(Exp::from_parse(tokens)?))),
+                Operator::Sub1 => Ok(Proc::Sub1(Box::from(Exp::from_parse(tokens)?))),
+                Operator::Zero => Ok(Proc::Zero(Box::from(Exp::from_parse(tokens)?))),
+                Operator::Not => Ok(Proc::Not(Box::from(Exp::from_parse(tokens)?))),
+                Operator::BitwiseNot => Ok(Proc::BitwiseNot(Box::from(Exp::from_parse(tokens)?))),
+            }
+        }
+        else { unreachable![] }
     }
 }
 
@@ -114,7 +142,20 @@ impl fmt::Display for Program {
 impl fmt::Display for Exp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Exp::ProcCall(procedure) => write!(f, "Procedure: {}", procedure),
             Exp::Constant(val) => write!(f, "Constant: {}", val),
+        }
+    }
+}
+
+impl fmt::Display for Proc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Proc::Add1(op) => write!(f, "add1({})", op),
+            Proc::Sub1(op) => write!(f, "sub1({})", op),
+            Proc::Zero(op) => write!(f, "zero?({})", op),
+            Proc::Not(op) => write!(f, "not({})", op),
+            Proc::BitwiseNot(op) => write!(f, "bitwise-not({})", op),
         }
     }
 }
@@ -135,19 +176,11 @@ mod tests {
     use crate::tokens::Position;
 
     #[test]
-    fn int_with_parentheses() {
+    fn simple_int() {
         let tokens = TokList::from(vec![
-            Token {
-                kind: TokenKind::OpenParen,
-                pos: Position {line: 0, column: 0}
-            },
             Token {
                 kind: TokenKind::Literal(Value::Int(Radix::Dec, String::from("42"))),
                 pos: Position {line: 0, column: 2}
-            },
-            Token {
-                kind: TokenKind::CloseParen,
-                pos: Position {line: 1, column: 0}
             },
         ]);
 
