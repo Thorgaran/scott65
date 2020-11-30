@@ -105,6 +105,36 @@ pub fn lex(input: &str) -> TokList {
                     None => lexer.lex_number(pos, Radix::Unknown(String::from("#"))),
                 };
             },
+            '+' => if let Some((pos, _)) = lexer.next() {
+                lexer.push_token(pos, TokenKind::Operator(Operator::Add));
+            },
+            '-' => if let Some((pos, _)) = lexer.next() {
+                lexer.push_token(pos, TokenKind::Operator(Operator::Sub));
+            },
+            '*' => if let Some((pos, _)) = lexer.next() {
+                lexer.push_token(pos, TokenKind::Operator(Operator::Multiply));
+            },
+            '=' => if let Some((pos, _)) = lexer.next() {
+                lexer.push_token(pos, TokenKind::Operator(Operator::Equal));
+            },
+            '>' => if let Some((pos, _)) = lexer.next() {
+                if let Some((_, '=')) = lexer.peek() {
+                    lexer.next();
+                    lexer.push_token(pos, TokenKind::Operator(Operator::GreaterOrEq));
+                }
+                else {
+                    lexer.push_token(pos, TokenKind::Operator(Operator::Greater));
+                }
+            },
+            '<' => if let Some((pos, _)) = lexer.next() {
+                if let Some((_, '=')) = lexer.peek() {
+                    lexer.next();
+                    lexer.push_token(pos, TokenKind::Operator(Operator::LessOrEq));
+                }
+                else {
+                    lexer.push_token(pos, TokenKind::Operator(Operator::Less));
+                }
+            },
             'a'..='z' | 'A'..='Z' => {
                 let (pos, word) = lexer.get_string(|x| is_not_delimiter(x));
                 match &word[..] {

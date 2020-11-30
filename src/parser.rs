@@ -18,12 +18,24 @@ pub enum Const {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Proc {
-    Add1(Box<Exp>),
-    Sub1(Box<Exp>),
-    Zero(Box<Exp>),
-    Not(Box<Exp>),
-    BitwiseNot(Box<Exp>),
+pub struct Proc {
+    pub name: ProcName,
+    pub operands: Vec<Box<Exp>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ProcName {
+    Add1,
+    Sub1,
+    Zero,
+    Not,
+    BitwiseNot,
+    Add,
+    Sub,
+    Multiply,
+    Equal,
+    GreaterOrEq,
+    Less,
 }
 
 pub fn parse(tokens: TokList) -> Result<Program, ParseError> {
@@ -63,11 +75,84 @@ impl Proc {
         if let TokenKind::Operator(op) = next_tok.kind {
             match op {
                 Operator::Any => panic!("Any should only be used for comparison purposes"),
-                Operator::Add1 => Ok(Proc::Add1(Box::from(Exp::from_parse(tokens)?))),
-                Operator::Sub1 => Ok(Proc::Sub1(Box::from(Exp::from_parse(tokens)?))),
-                Operator::Zero => Ok(Proc::Zero(Box::from(Exp::from_parse(tokens)?))),
-                Operator::Not => Ok(Proc::Not(Box::from(Exp::from_parse(tokens)?))),
-                Operator::BitwiseNot => Ok(Proc::BitwiseNot(Box::from(Exp::from_parse(tokens)?))),
+                Operator::Add1 => Ok(Proc{ 
+                    name: ProcName::Add1, 
+                    operands: vec![Box::from(Exp::from_parse(tokens)?)] 
+                }),
+                Operator::Sub1 => Ok(Proc{ 
+                    name: ProcName::Sub1, 
+                    operands: vec![Box::from(Exp::from_parse(tokens)?)] 
+                }),
+                Operator::Zero => Ok(Proc{ 
+                    name: ProcName::Zero, 
+                    operands: vec![Box::from(Exp::from_parse(tokens)?)] 
+                }),
+                Operator::Not => Ok(Proc{ 
+                    name: ProcName::Not, 
+                    operands: vec![Box::from(Exp::from_parse(tokens)?)] 
+                }),
+                Operator::BitwiseNot => Ok(Proc{ 
+                    name: ProcName::BitwiseNot, 
+                    operands: vec![Box::from(Exp::from_parse(tokens)?)] 
+                }),
+                Operator::Add => Ok(Proc{ 
+                    name: ProcName::Add, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::Sub => Ok(Proc{ 
+                    name: ProcName::Sub, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::Multiply => Ok(Proc{ 
+                    name: ProcName::Multiply, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::Equal => Ok(Proc{ 
+                    name: ProcName::Equal, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::Greater => {
+                    let mut operands = vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ];
+                    operands.reverse();
+                    Ok(Proc{ name: ProcName::Less, operands })
+                },
+                Operator::GreaterOrEq => Ok(Proc{ 
+                    name: ProcName::GreaterOrEq, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ]
+                }),
+                Operator::Less => Ok(Proc{ 
+                    name: ProcName::Less, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::LessOrEq => {
+                    let mut operands = vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ];
+                    operands.reverse();
+                    Ok(Proc{ name: ProcName::GreaterOrEq, operands })
+                },
             }
         }
         else { unreachable![] }
@@ -150,12 +235,27 @@ impl fmt::Display for Exp {
 
 impl fmt::Display for Proc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}({})", self.name, self.operands.iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<String>>()
+            .join(", "))
+    }
+}
+
+impl fmt::Display for ProcName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Proc::Add1(op) => write!(f, "add1({})", op),
-            Proc::Sub1(op) => write!(f, "sub1({})", op),
-            Proc::Zero(op) => write!(f, "zero?({})", op),
-            Proc::Not(op) => write!(f, "not({})", op),
-            Proc::BitwiseNot(op) => write!(f, "bitwise-not({})", op),
+            ProcName::Add1 => write!(f, "add1"),
+            ProcName::Sub1 => write!(f, "sub1"),
+            ProcName::Zero => write!(f, "zero?"),
+            ProcName::Not => write!(f, "not"),
+            ProcName::BitwiseNot => write!(f, "bitwise-not"),
+            ProcName::Add => write!(f, "+"),
+            ProcName::Sub => write!(f, "-"),
+            ProcName::Multiply => write!(f, "*"),
+            ProcName::Equal => write!(f, "="),
+            ProcName::GreaterOrEq => write!(f, ">="),
+            ProcName::Less => write!(f, "<"),
         }
     }
 }

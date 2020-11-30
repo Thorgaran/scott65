@@ -1,4 +1,5 @@
 /target
 /scm_files
-/tests/*.bin
+/tests/*.scm
 /tests/*.asm
+/tests/*.bin

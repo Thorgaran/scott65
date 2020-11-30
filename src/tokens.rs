@@ -53,6 +53,14 @@ pub enum Operator {
     Zero,
     Not,
     BitwiseNot,
+    Add,
+    Sub,
+    Multiply,
+    Equal,
+    Greater,
+    GreaterOrEq,
+    Less,
+    LessOrEq,
 }
 
 impl Radix {
@@ -138,7 +146,15 @@ impl fmt::Display for Operator {
             Operator::Sub1 => "sub1",
             Operator::Zero => "zero?",
             Operator::Not => "not",
-            Operator::BitwiseNot => "bitwise-not"
+            Operator::BitwiseNot => "bitwise-not",
+            Operator::Add => "+",
+            Operator::Sub => "-",
+            Operator::Multiply => "*",
+            Operator::Equal => "=",
+            Operator::Greater => ">",
+            Operator::GreaterOrEq => ">=",
+            Operator::Less => "<",
+            Operator::LessOrEq => "<=",
         })
     }
 }
