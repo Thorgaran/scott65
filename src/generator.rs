@@ -1,5 +1,6 @@
 #![allow(unused)]
 use super::parser::{Program, Exp, Proc, ProcName, Const};
+use std::collections::HashMap;
 
 const STACK_SIZE: usize = 0x2000;
 
@@ -25,10 +26,16 @@ impl Assembly {
         self.add(format!("        {}", string.into()));
     }
 
-    fn create_labels<S: Into<String> + Copy>(&mut self, names: &[S]) -> Vec<String> {
-        let mut labels = vec![];
+    fn create_labels<S>(&mut self, names: &[S]) -> HashMap<String, String> 
+    where
+        S: Into<String> + Eq + Copy + std::hash::Hash
+    {
+        let mut labels = HashMap::new();
         for name in names.iter() {
-            labels.push(format!("{}_{}", (*name).into(), self.label_count));
+            labels.insert(
+                (*name).into(),
+                format!("{}_{}", (*name).into(), self.label_count)
+            );
             self.label_count += 1;
         }
         labels
@@ -136,18 +143,18 @@ impl Assembly {
                     self.add_inden("ldy #0");
                     self.known_y_val = Some(0);
                 };
-                self.add_inden("lda #0");                   //     lda #0
-                self.add(format!("{}:", lbls[0]));          // nextbit:
-                self.use_stack("cpy", 1);                   //     cpy op2
-                self.add_inden(format!("beq {}", lbls[2])); //     beq end
-                self.use_stack("lsr", 1);                   //     lsr op2
-                self.add_inden(format!("bcc {}", lbls[1])); //     bcc skip
-                self.add_inden("clc");                      //     clc
-                self.use_stack("adc", 0);                   //     adc op1
-                self.add(format!("{}:", lbls[1]));          // skip:
-                self.use_stack("asl", 0);                   //     asl op1
-                self.add_inden(format!("jmp {}", lbls[0])); //     jmp nextbit
-                self.add(format!("{}:", lbls[2]));          // end:
+                self.add_inden("lda #0");                                           //     lda #0
+                self.add(format!("{}:", lbls.get("mul_nextbit").unwrap()));         // nextbit:
+                self.use_stack("cpy", 1);                                           //     cpy op2
+                self.add_inden(format!("beq {}", lbls.get("mul_end").unwrap()));    //     beq end
+                self.use_stack("lsr", 1);                                           //     lsr op2
+                self.add_inden(format!("bcc {}", lbls.get("mul_skip").unwrap()));   //     bcc skip
+                self.add_inden("clc");                                              //     clc
+                self.use_stack("adc", 0);                                           //     adc op1
+                self.add(format!("{}:", lbls.get("mul_skip").unwrap()));            // skip:
+                self.use_stack("asl", 0);                                           //     asl op1
+                self.add_inden(format!("jmp {}", lbls.get("mul_nextbit").unwrap()));//     jmp nextbit
+                self.add(format!("{}:", lbls.get("mul_end").unwrap()));             // end:
 
                 // remove operands from stack
                 self.stack_ptr -= 2;
@@ -158,9 +165,9 @@ impl Assembly {
                 self.pull_stack("cmp");
                 self.add_inden("beq 5");
                 self.add_inden("lda #0");
-                self.add_inden(format!("jmp {}", lbl[0]));
+                self.add_inden(format!("jmp {}", lbl.get("eq_end").unwrap()));
                 self.add_inden("lda #1");
-                self.add(format!("{}:", lbl[0]));
+                self.add(format!("{}:", lbl.get("eq_end").unwrap()));
             },
             ProcName::GreaterOrEq => {
                 let lbl = self.create_labels(&["greater_eq_end"]);
@@ -168,9 +175,9 @@ impl Assembly {
                 self.pull_stack("cmp");
                 self.add_inden("bcs 5");
                 self.add_inden("lda #0");
-                self.add_inden(format!("jmp {}", lbl[0]));
+                self.add_inden(format!("jmp {}", lbl.get("greater_eq_end").unwrap()));
                 self.add_inden("lda #1");
-                self.add(format!("{}:", lbl[0]));
+                self.add(format!("{}:", lbl.get("greater_eq_end").unwrap()));
             },
             ProcName::Less => {
                 let lbl = self.create_labels(&["less_end"]);
@@ -178,9 +185,9 @@ impl Assembly {
                 self.pull_stack("cmp");
                 self.add_inden("bcc 5");
                 self.add_inden("lda #0");
-                self.add_inden(format!("jmp {}", lbl[0]));
+                self.add_inden(format!("jmp {}", lbl.get("less_end").unwrap()));
                 self.add_inden("lda #1");
-                self.add(format!("{}:", lbl[0]));
+                self.add(format!("{}:", lbl.get("less_end").unwrap()));
             },
             _ => todo!(),
         }
