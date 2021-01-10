@@ -17,6 +17,8 @@ pub enum TokenKind {
     CloseParen,
     Literal(Value),
     Operator(Operator),
+    Keyword(Keyword),
+    Identifer(String),
 }
 
 // Used to store the position of a token in the input string
@@ -65,6 +67,15 @@ pub enum Operator {
     LessOrEq,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Keyword {
+    // The Any variant is used for comparison purposes
+    Any,
+    Begin,
+    Let,
+    Set,
+}
+
 impl Radix {
     /// Test whether or not the radix is Radix::Unknown
     pub fn is_unknown(&self) -> bool {
@@ -105,6 +116,8 @@ impl fmt::Display for TokenKind {
             TokenKind::CloseParen => String::from(")"),
             TokenKind::Literal(val) => format!("Literal: {}", val),
             TokenKind::Operator(op) => format!("Operator: {}", op),
+            TokenKind::Keyword(kw) => format!("Keyword: {}", kw),
+            TokenKind::Identifer(s) => format!("Identifier: \"{}\"", s),
         };
 
         write!(f, "'{}'", token_str)
@@ -159,6 +172,17 @@ impl fmt::Display for Operator {
             Operator::GreaterOrEq => ">=",
             Operator::Less => "<",
             Operator::LessOrEq => "<=",
+        })
+    }
+}
+
+impl fmt::Display for Keyword {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", match self {
+            Keyword::Any => "any",
+            Keyword::Begin => "begin",
+            Keyword::Let => "let",
+            Keyword::Set => "set!",
         })
     }
 }

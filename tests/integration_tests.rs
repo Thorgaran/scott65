@@ -172,3 +172,10 @@ fn operators() {
     let tests = read_test_file(name);
     run_tests(tests);
 }
+
+#[test]
+fn variables() {
+    let name = "variables";
+    let tests = read_test_file(name);
+    run_tests(tests);
+}

@@ -77,6 +77,9 @@ fn is_not_delimiter(c: &char) -> bool {
 pub fn lex(input: &str) -> TokList {
     let mut lexer = Lexer::new(input);
     
+    // Encase the program in a begin expression
+    lexer.push_token(Position { line: 0, column: 0 }, TokenKind::OpenParen);
+    lexer.push_token(Position { line: 0, column: 0 }, TokenKind::Keyword(Keyword::Begin));
 
     while let Some((pos, c)) = lexer.peek() {
         match c {
@@ -145,13 +148,19 @@ pub fn lex(input: &str) -> TokList {
                     "bitwise-not" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::BitwiseNot)),
                     "and" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::And)),
                     "or" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Or)),
-                    _ => todo!(), // identifier
+                    "begin" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::Begin)),
+                    "let" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::Let)),
+                    "set!" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::Set)),
+                    _ => lexer.push_token(pos.unwrap(), TokenKind::Identifer(word)),
                 };
             },
             ' ' => { lexer.next(); },
             _ => panic!("Invalid character: {}", c),
         }
     }
+
+    // Close the begin expression
+    lexer.push_token(Position { line: 0, column: 0 }, TokenKind::CloseParen);
 
     TokList::from(lexer.tokens)
 }
@@ -162,13 +171,34 @@ mod tests {
 
     #[test]
     fn empty() {
-        let expected_tokens = TokList::from(vec![]);
+        let expected_tokens = TokList::from(vec![
+            Token { 
+                kind: TokenKind::OpenParen, 
+                pos: Position { line: 0, column: 0 }
+            },
+            Token { 
+                kind: TokenKind::Keyword(Keyword::Begin), 
+                pos: Position { line: 0, column: 0 }
+            },
+            Token { 
+                kind: TokenKind::CloseParen, 
+                pos: Position { line: 0, column: 0 }
+            },
+        ]);
         assert_eq!(expected_tokens, lex(""));
     }
 
     #[test]
     fn paren_and_int() {
         let expected_tokens = TokList::from(vec![
+            Token { 
+                kind: TokenKind::OpenParen, 
+                pos: Position { line: 0, column: 0 }
+            },
+            Token { 
+                kind: TokenKind::Keyword(Keyword::Begin), 
+                pos: Position { line: 0, column: 0 }
+            },
             Token { 
                 kind: TokenKind::Literal(Value::Int(
                     Radix::Dec, 
@@ -201,6 +231,10 @@ mod tests {
                     String::from("0")
                 )), 
                 pos: Position { line: 0, column: 11 }
+            },
+            Token { 
+                kind: TokenKind::CloseParen, 
+                pos: Position { line: 0, column: 0 }
             },
         ]);
 

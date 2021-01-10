@@ -1,0 +1,44 @@
+mul_lineː 
+(add1 0)
+(add1 1)⟶2；
+let_1ː (let ((x 3)) 
+    x)⟶3；
+let_2ː (let ((x 4) (y #\a)) 
+    x)⟶4；
+complex_let_1ː (let ((x (* 5 6))) 
+    (add1 x))⟶31；
+complex_let_2ː (let ((x (* 5 6)) (y (- 35 x)))
+    (+ 12 y))⟶17；
+name_let_1ː (let ((foo 3)) 
+    foo)⟶3；
+name_let_2ː (let ((bar! 3) (AsC:i? 7)) 
+    (- AsC:i? bar!))⟶4；
+mul_expsː (let ((x 123)) 
+    (sub1 3)
+    (* 2 x))⟶246；
+set_1ː (let ((x 3)) 
+    (set! x 8)
+    x)⟶8；
+set_1_bisː (let ((x 3)) 
+    (set! x 8)
+    (- x 3))⟶5；
+set_1_terː (let ((x 3)) 
+    (set! x (add1 x))
+    (add1 x))⟶5；
+set_2ː (let ((x 5) (y (+ #\A x)))
+    (set! x 8)
+    (set! y (+ y x))
+    y)⟶78；
+complex_setː (let ((two 2) (three (add1 two)) (var (+ three two)))
+    (set! var (* var three))
+    (set! var (- var (* two 0)))
+    (zero? 5)
+    var)⟶15；
+nested_letː (let ((x 1) (y 2))
+    (let ((w 3) (y 4) (z 5))
+        (set! x (+ w (+ x (+ y z)))))
+    x)⟶13；
+nested_setː (let ((x 3) (y 4)) 
+    (set! x (+ x (set! y 5)))
+    (zero? 4)
+    x)⟶8；

@@ -1,5 +1,5 @@
 #![allow(unused)]
-use super::parser::{Program, Exp, Proc, ProcName, Const};
+use super::parser::{Program, Exp, Assign, Proc, ProcName, Const};
 use std::collections::HashMap;
 
 const STACK_SIZE: usize = 0x2000;
@@ -7,7 +7,8 @@ const STACK_SIZE: usize = 0x2000;
 pub struct Assembly {
     asm: Vec<String>,
     label_count: usize,
-    stack_ptr: usize,
+    pub stack_ptr: usize,
+    pub var_map: HashMap<String, usize>,
     known_y_val: Option<u8>,
 }
 
@@ -67,6 +68,7 @@ impl Assembly {
             asm: vec![], 
             label_count: 0, 
             stack_ptr: 0, 
+            var_map: HashMap::new(),
             known_y_val: None 
         };
         
@@ -96,7 +98,32 @@ impl Assembly {
             Exp::Constant(constant) => self.add_inden(format!("lda #{}", 
                 Assembly::gen_const(constant)
             )),
+            Exp::Assign(assign) => self.gen_assign(assign),
+            Exp::Var(iden) => self.add_inden(format!(
+                "lda STACK-{}", 
+                self.var_map.get(&iden).expect("Use of unassigned variable")
+            )),
+            Exp::ExpList(exp_list) => {
+                for exp in exp_list.exps.into_iter() {
+                    self.gen_exp(*exp);
+                }
+            },
         }
+    }
+
+    fn gen_assign(&mut self, assign: Assign) {
+        let var_addr = *self.var_map.entry(assign.iden).or_insert({
+            self.stack_ptr += 1;
+            
+            if self.stack_ptr == STACK_SIZE {
+                panic!("Stack overflow");
+            };
+
+            self.stack_ptr - 1
+        });
+        
+        self.gen_exp(*assign.val);
+        self.add_inden(format!("sta STACK-{}", var_addr));
     }
 
     fn gen_proc(&mut self, procedure: Proc) {
@@ -215,7 +242,7 @@ impl Assembly {
                 self.add_inden("lda #1");
                 self.add(format!("{}:", lbl.get("less_end").unwrap()));
             },
-            _ => todo!(),
+            _ => todo!(), // functions?
         }
     }   
 

@@ -3,3 +3,4 @@
 /tests/*.scm
 /tests/*.asm
 /tests/*.bin
+.vscode/
