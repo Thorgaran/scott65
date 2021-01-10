@@ -34,6 +34,8 @@ pub enum ProcName {
     Sub,
     Multiply,
     Equal,
+    And,
+    Or,
     GreaterOrEq,
     Less,
 }
@@ -118,6 +120,20 @@ impl Proc {
                 }),
                 Operator::Equal => Ok(Proc{ 
                     name: ProcName::Equal, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::And => Ok(Proc{ 
+                    name: ProcName::And, 
+                    operands: vec![
+                        Box::from(Exp::from_parse(tokens)?),
+                        Box::from(Exp::from_parse(tokens)?)
+                    ] 
+                }),
+                Operator::Or => Ok(Proc{ 
+                    name: ProcName::Or, 
                     operands: vec![
                         Box::from(Exp::from_parse(tokens)?),
                         Box::from(Exp::from_parse(tokens)?)
@@ -254,6 +270,8 @@ impl fmt::Display for ProcName {
             ProcName::Sub => write!(f, "-"),
             ProcName::Multiply => write!(f, "*"),
             ProcName::Equal => write!(f, "="),
+            ProcName::And => write!(f, "and"),
+            ProcName::Or => write!(f, "or"),
             ProcName::GreaterOrEq => write!(f, ">="),
             ProcName::Less => write!(f, "<"),
         }

@@ -103,10 +103,17 @@ impl Assembly {
         // prepare operands
         let mut operands = procedure.operands.into_iter().rev();
         self.gen_exp(*operands.next().expect("procedure with no operands"));
-        for op in operands {
-            self.push_stack("sta");
-            self.gen_exp(*op);
+        // only prepare the next operands if the procedure is not AND nor OR
+        let leftover_op = if procedure.name != ProcName::And && procedure.name != ProcName::Or {
+            for op in operands {
+                self.push_stack("sta");
+                self.gen_exp(*op);
+            }
+            None
         }
+        else {
+            Some(operands)
+        };
 
         // execute procedure
         match procedure.name {
@@ -168,6 +175,25 @@ impl Assembly {
                 self.add_inden(format!("jmp {}", lbl.get("eq_end").unwrap()));
                 self.add_inden("lda #1");
                 self.add(format!("{}:", lbl.get("eq_end").unwrap()));
+            },
+            ProcName::And => {
+                let lbl = self.create_labels(&["and_end"]);
+
+                self.add_inden(format!("beq {}", lbl.get("and_end").unwrap())); // shortcut
+                self.gen_exp(*leftover_op.unwrap().next().expect("missing 2nd operand"));
+                self.add_inden(format!("beq {}", lbl.get("and_end").unwrap()));
+                self.add_inden("lda #1");
+                self.add(format!("{}:", lbl.get("and_end").unwrap()));
+            },
+            ProcName::Or => {
+                let lbls = self.create_labels(&["or_shortcut", "or_end"]);
+
+                self.add_inden(format!("bne {}", lbls.get("or_shortcut").unwrap())); // shortcut
+                self.gen_exp(*leftover_op.unwrap().next().expect("missing 2nd operand"));
+                self.add_inden(format!("beq {}", lbls.get("or_end").unwrap()));
+                self.add(format!("{}:", lbls.get("or_shortcut").unwrap()));
+                self.add_inden("lda #1");
+                self.add(format!("{}:", lbls.get("or_end").unwrap()));
             },
             ProcName::GreaterOrEq => {
                 let lbl = self.create_labels(&["greater_eq_end"]);

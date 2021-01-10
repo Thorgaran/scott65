@@ -143,6 +143,8 @@ pub fn lex(input: &str) -> TokList {
                     "zero?" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Zero)),
                     "not" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Not)),
                     "bitwise-not" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::BitwiseNot)),
+                    "and" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::And)),
+                    "or" => lexer.push_token(pos.unwrap(), TokenKind::Operator(Operator::Or)),
                     _ => todo!(), // identifier
                 };
             },
