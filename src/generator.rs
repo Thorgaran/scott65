@@ -1,5 +1,5 @@
 #![allow(unused)]
-use super::parser::{Program, Exp, Assign, Proc, ProcName, Const};
+use super::parser::{Program, Exp, Assign, Cond, Proc, ProcName, Const};
 use std::collections::HashMap;
 
 const STACK_SIZE: usize = 0x2000;
@@ -9,7 +9,6 @@ pub struct Assembly {
     label_count: usize,
     pub stack_ptr: usize,
     pub var_map: HashMap<String, usize>,
-    known_y_val: Option<u8>,
 }
 
 impl Into<String> for Assembly {
@@ -69,7 +68,6 @@ impl Assembly {
             label_count: 0, 
             stack_ptr: 0, 
             var_map: HashMap::new(),
-            known_y_val: None 
         };
         
         asm.add("SER_OUT = $6000");
@@ -94,20 +92,21 @@ impl Assembly {
 
     fn gen_exp(&mut self, exp: Exp) {
         match exp {
-            Exp::ProcCall(procedure) => self.gen_proc(procedure),
-            Exp::Constant(constant) => self.add_inden(format!("lda #{}", 
-                Assembly::gen_const(constant)
-            )),
-            Exp::Assign(assign) => self.gen_assign(assign),
-            Exp::Var(iden) => self.add_inden(format!(
-                "lda STACK-{}", 
-                self.var_map.get(&iden).expect("Use of unassigned variable")
-            )),
             Exp::ExpList(exp_list) => {
                 for exp in exp_list.exps.into_iter() {
                     self.gen_exp(*exp);
                 }
             },
+            Exp::Assign(assign) => self.gen_assign(assign),
+            Exp::Cond(cond) => self.gen_cond(cond),
+            Exp::ProcCall(procedure) => self.gen_proc(procedure),
+            Exp::Constant(constant) => self.add_inden(format!("lda #{}", 
+                Assembly::gen_const(constant)
+            )),
+            Exp::Var(iden) => self.add_inden(format!(
+                "lda STACK-{}", 
+                self.var_map.get(&iden).expect("Use of unassigned variable")
+            )),
         }
     }
 
@@ -124,6 +123,22 @@ impl Assembly {
         
         self.gen_exp(*assign.val);
         self.add_inden(format!("sta STACK-{}", var_addr));
+    }
+
+    fn gen_cond(&mut self, cond: Cond) {
+        let lbls = self.create_labels(&["else", "if_end"]);
+        
+        self.gen_exp(*cond.cond);
+        self.add_inden(format!("beq {}", lbls.get(
+            if let Some(_) = cond.else_branch { "else" } else { "if_end" }
+        ).unwrap()));
+        self.gen_exp(*cond.if_branch);
+        if let Some(else_branch) = cond.else_branch {
+            self.add_inden(format!("jmp {}", lbls.get("if_end").unwrap()));
+            self.add(format!("{}:", lbls.get("else").unwrap()));
+            self.gen_exp(*else_branch);
+        }
+        self.add(format!("{}:", lbls.get("if_end").unwrap()));
     }
 
     fn gen_proc(&mut self, procedure: Proc) {
@@ -173,10 +188,8 @@ impl Assembly {
                 self.push_stack("sta");
 
                 // compute multiplication using shifts and adds
-                if self.known_y_val != Some(0) {
-                    self.add_inden("ldy #0");
-                    self.known_y_val = Some(0);
-                };
+
+                self.add_inden("ldy #0");
                 self.add_inden("lda #0");                                           //     lda #0
                 self.add(format!("{}:", lbls.get("mul_nextbit").unwrap()));         // nextbit:
                 self.use_stack("cpy", 1);                                           //     cpy op2

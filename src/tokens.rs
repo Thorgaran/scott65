@@ -74,6 +74,7 @@ pub enum Keyword {
     Begin,
     Let,
     Set,
+    If,
 }
 
 impl Radix {
@@ -183,6 +184,7 @@ impl fmt::Display for Keyword {
             Keyword::Begin => "begin",
             Keyword::Let => "let",
             Keyword::Set => "set!",
+            Keyword::If => "if",
         })
     }
 }

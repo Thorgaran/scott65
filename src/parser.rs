@@ -6,11 +6,12 @@ pub struct Program(pub Exp);
 
 #[derive(Debug, PartialEq)]
 pub enum Exp {
+    ExpList(ExpList),
+    Assign(Assign),
+    Cond(Cond),
     ProcCall(Proc),
     Constant(Const),
-    Assign(Assign),
     Var(String),
-    ExpList(ExpList),
 }
 
 #[derive(Debug, PartialEq)]
@@ -29,6 +30,13 @@ pub enum Const {
 pub struct Assign {
     pub iden: String,
     pub val: Box<Exp>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Cond {
+    pub cond: Box<Exp>,
+    pub if_branch: Box<Exp>,
+    pub else_branch: Option<Box<Exp>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -99,6 +107,20 @@ impl Exp {
                             tokens.expect_next(TokenKind::CloseParen)?;
 
                             Ok(Exp::Assign(assign))
+                        }
+                        Keyword::If => {
+                            let cond = Box::from(Exp::from_parse(tokens)?);
+
+                            let if_branch = Box::from(Exp::from_parse(tokens)?);
+
+                            let else_branch = if !tokens.is_next(TokenKind::CloseParen)? {
+                                Some(Box::from(Exp::from_parse(tokens)?))
+                            }
+                            else { None };
+
+                            tokens.expect_next(TokenKind::CloseParen)?;
+
+                            Ok(Exp::Cond(Cond { cond, if_branch, else_branch }))
                         }
                     }
                 }
@@ -328,11 +350,12 @@ impl fmt::Display for Program {
 impl fmt::Display for Exp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Exp::ExpList(exp_list) => write!(f, "ExpList:\n    {}", exp_list),
+            Exp::Assign(assign) => write!(f, "Assign: {}", assign),
+            Exp::Cond(cond) => write!(f, "Cond:\n    {}", cond),
             Exp::ProcCall(procedure) => write!(f, "Procedure: {}", procedure),
             Exp::Constant(val) => write!(f, "Constant: {}", val),
-            Exp::Assign(assign) => write!(f, "Assign: {}", assign),
             Exp::Var(iden) => write!(f, "Var: {}", iden),
-            Exp::ExpList(exp_list) => write!(f, "ExpList:\n    {}", exp_list),
         }
     }
 }
@@ -346,6 +369,15 @@ impl fmt::Display for ExpList {
 impl fmt::Display for Assign {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} <- {}", self.iden, self.val)
+    }
+}
+
+impl fmt::Display for Cond {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Condition: {}\n    If: {}{}", self.cond, self.if_branch, match &self.else_branch {
+            Some(exp) => format!("\n    Else: {}", exp),
+            None => String::from(""),
+        })
     }
 }
 

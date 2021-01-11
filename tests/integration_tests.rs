@@ -179,3 +179,10 @@ fn variables() {
     let tests = read_test_file(name);
     run_tests(tests);
 }
+
+#[test]
+fn conditionals() {
+    let name = "conditionals";
+    let tests = read_test_file(name);
+    run_tests(tests);
+}

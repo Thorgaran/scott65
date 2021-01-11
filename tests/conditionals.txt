@@ -1,0 +1,41 @@
+if_trueː (if #t 42)⟶42；
+else_trueː (if #t 25 36)⟶25；
+else_falseː (if #f 25 36)⟶36；
+if_not_trueː (if (not #t) 67 89)⟶89；
+if_not_falseː (if (not #f) 67 89)⟶67；
+if_zero_trueː (if (zero? 0) 11 22)⟶11；
+if_zero_falseː (if (zero? 1) 11 22)⟶22；
+if_eq_0_0ː (if (= 0 0) 254 255)⟶254；
+if_eq_0_1ː (if (= 0 1) 254 255)⟶255；
+if_and_true_trueː (if (and #t #t) 1 2)⟶1；
+if_and_true_falseː (if (and #t #f) 1 2)⟶2；
+if_and_false_trueː (if (and #f #t) 1 2)⟶2；
+if_and_false_falseː (if (and #f #f) 1 2)⟶2；
+if_or_true_trueː (if (or #t #t) 3 4)⟶3；
+if_or_true_falseː (if (or #t #f) 3 4)⟶3；
+if_or_false_trueː (if (or #f #t) 3 4)⟶3；
+if_or_false_falseː (if (or #f #f) 3 4)⟶4；
+if_greater_2_3ː (if (> 2 3) 9 11)⟶11；
+if_greater_3_2ː (if (> 3 2) 9 11)⟶9；
+if_greater_3_3ː (if (> 3 3) 9 11)⟶11；
+if_greater_eq_2_3ː (if (>= 2 3) 9 11)⟶11；
+if_greater_eq_3_2ː (if (>= 3 2) 9 11)⟶9；
+if_greater_eq_3_3ː (if (>= 3 3) 9 11)⟶9；
+if_less_2_3ː (if (< 2 3) 9 11)⟶9；
+if_less_3_2ː (if (< 3 2) 9 11)⟶11；
+if_less_3_3ː (if (< 3 3) 9 11)⟶11；
+if_less_eq_2_3ː (if (<= 2 3) 9 11)⟶9；
+if_less_eq_3_2ː (if (<= 3 2) 9 11)⟶11；
+if_less_eq_3_3ː (if (<= 3 3) 9 11)⟶9；
+if_int_0ː (if 0 8 9)⟶9；
+if_int_1ː (if 1 8 9)⟶8；
+if_charː (if #\z 8 9)⟶8；
+if_let_trueː (if #t (let ((x 16)) x) (let ((x 17)) x))⟶16；
+if_let_falseː (if #f (let ((x 16)) x) (let ((x 17)) x))⟶17；
+let_if_trueː (let ((x (if #t 25 36))) x)⟶25；
+let_if_falseː (let ((x (if #f 25 36))) x)⟶36；
+if_complexː (let ((x 9) (y 7)) 
+    (set! x (if (< x y) (* x y) (- x 5)))
+    (set! x (if (< x y) (* x y) (- x 5)))
+    (set! x (if (< x y) (* x y) (- x 5)))
+    x)⟶23；
