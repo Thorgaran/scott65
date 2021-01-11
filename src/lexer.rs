@@ -152,6 +152,7 @@ pub fn lex(input: &str) -> TokList {
                     "let" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::Let)),
                     "set!" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::Set)),
                     "if" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::If)),
+                    "define" => lexer.push_token(pos.unwrap(), TokenKind::Keyword(Keyword::Define)),
                     _ => lexer.push_token(pos.unwrap(), TokenKind::Identifer(word)),
                 };
             },
