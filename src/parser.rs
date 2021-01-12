@@ -76,8 +76,12 @@ impl Exp {
                 if let TokenKind::Keyword(kw) = tokens.next().unwrap().kind {
                     match kw {
                         Keyword::Any => panic!("Any should only be used for comparison purposes"),
-                        Keyword::Begin => {                        
-                            Ok(Exp::ExpList(ExpList::from_parse(tokens)?))
+                        Keyword::Begin => {                 
+                            let exp_list = Exp::ExpList(ExpList::from_parse(tokens)?);
+
+                            tokens.expect_next(TokenKind::CloseParen)?;
+
+                            Ok(exp_list)
                         },
                         Keyword::Let => {
                             tokens.expect_next(TokenKind::OpenParen)?;
